@@ -847,6 +847,31 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, GC::
         auto content_box_wrapper = parent.create_anonymous_wrapper();
         content_box_wrapper->set_children_are_inline(parent.children_are_inline());
 
+        // NB: If the button contains block-level elements that explicitly request percentage
+        // dimensions, we must explicitly pass down the 100% height and width to prevent
+        // them from collapsing to 0. Otherwise, we leave the wrapper as auto to preserve
+        // the button's intrinsic vertical centering.
+        if (!parent.children_are_inline()) {
+            bool needs_percentage_dimensions = false;
+
+            // Scan the children to see if any of them actually use percentages
+            for (auto child = parent.first_child(); child; child = child->next_sibling()) {
+                if (auto const* child_with_style = as_if<NodeWithStyle>(*child)) {
+                    if (child_with_style->computed_values().height().contains_percentage() || child_with_style->computed_values().width().contains_percentage()) {
+                        needs_percentage_dimensions = true;
+                        break;
+                    }
+                }
+            }
+
+            // Only force 100% if a child actually needs it!
+            if (needs_percentage_dimensions) {
+                auto& content_computed_values = content_box_wrapper->mutable_computed_values();
+                content_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
+                content_computed_values.set_width(CSS::Size::make_percentage(CSS::Percentage(100)));
+            }
+        }
+
         Vector<GC::Root<Node>> sequence;
         for (auto child = parent.first_child(); child; child = child->next_sibling())
             sequence.append(*child);
