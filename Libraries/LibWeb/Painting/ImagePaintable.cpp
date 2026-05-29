@@ -7,6 +7,7 @@
 
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -86,6 +87,30 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                 context.display_list_recorder().fill_rect(image_rect_device_pixels.to_type<int>(), selection_background_color);
         }
     }
+}
+
+TraversalDecision ImagePaintable::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
+{
+    return PaintableBox::hit_test(position, type, [&](HitTestResult result) {
+        if (result.paintable.ptr() != this || !dom_node())
+            return callback(result);
+
+        if (!is<HTML::HTMLImageElement>(*dom_node()))
+            return callback(result);
+
+        auto& image_element = as<HTML::HTMLImageElement>(*dom_node());
+
+        auto local_position = transform_point_to_local(position).value_or(position);
+        auto image_rect = absolute_rect();
+        int local_x = (local_position.x() - image_rect.x()).to_int();
+        int local_y = (local_position.y() - image_rect.y()).to_int();
+
+        if (auto* hit_area = image_element.area_at(local_x, local_y)) {
+            result.dom_node_override = hit_area;
+        }
+
+        return callback(result);
+    });
 }
 
 }

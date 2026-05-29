@@ -20,6 +20,8 @@ public:
 
     GC::Ref<DOM::HTMLCollection> areas();
 
+    HTMLAreaElement* area_at(int x, int y) const;
+
 private:
     HTMLMapElement(DOM::Document&, DOM::QualifiedName);
 

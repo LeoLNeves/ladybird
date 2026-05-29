@@ -102,6 +102,7 @@ private:
         RefPtr<Painting::Paintable> paintable;
         RefPtr<Painting::ChromeWidget> chrome_widget;
         Optional<int> index_in_node;
+        GC::Ptr<DOM::Node> dom_node_override;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
     GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;

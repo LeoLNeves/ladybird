@@ -26,8 +26,10 @@
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/HTMLPictureElement.h>
 #include <LibWeb/HTML/HTMLSourceElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
@@ -1453,6 +1455,29 @@ GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const
     if (!m_current_request)
         return nullptr;
     return m_current_request->image_data();
+}
+
+HTMLAreaElement* HTMLImageElement::area_at(int x, int y) const
+{
+    auto usemap = get_attribute_value(HTML::AttributeNames::usemap);
+    if (usemap.is_empty() || !usemap.starts_with('#'))
+        return nullptr;
+
+    auto map_name = usemap.bytes_as_string_view().substring_view(1);
+
+    HTMLMapElement const* target_map = nullptr;
+    document().for_each_in_subtree_of_type<HTML::HTMLMapElement>([&](auto const& map) {
+        if (map.get_attribute_value(HTML::AttributeNames::name) == map_name) {
+            target_map = &map;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+
+    if (!target_map)
+        return nullptr;
+
+    return target_map->area_at(x, y);
 }
 
 }

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../include.js"></script>
+</head>
+<body>
+<img id="test-img"
+     style="margin: 0; padding: 0; border: none; display: block;"
+     src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+     width="400" height="300"
+     usemap="#example-map">
+     
+<map name="example-map">
+  <area id="rect-area" shape="rect" coords="50,50,150,150" href="#rect">
+  <area id="circle-area" shape="circle" coords="250,100,50" href="#circle">
+  <area id="poly-area" shape="poly" coords="100,200,200,200,150,250" href="#poly">
+</map>
+
+<script>
+test(() => {
+    const img = document.getElementById("test-img");
+    const rectArea = document.getElementById("rect-area");
+    const circleArea = document.getElementById("circle-area");
+    const polyArea = document.getElementById("poly-area");
+
+    const imgRect = img.getBoundingClientRect();
+
+    // Test clicking dead space (Should return the img)
+    const deadSpace = document.elementFromPoint(imgRect.left + 10, imgRect.top + 10);
+    println(`Dead space returns img: ${deadSpace === img}`);
+
+    // Test the Rectangle (50,50 to 150,150)
+    const hitRect = document.elementFromPoint(imgRect.left + 100, imgRect.top + 100);
+    println(`Inside rect returns rectArea: ${hitRect === rectArea}`);
+
+    // Test the Circle (center 250,100 radius 50)
+    const hitCircle = document.elementFromPoint(imgRect.left + 250, imgRect.top + 100);
+    println(`Inside circle returns circleArea: ${hitCircle === circleArea}`);
+
+    // Test the Polygon (triangle 100,200 -> 200,200 -> 150,250)
+    const hitPoly = document.elementFromPoint(imgRect.left + 150, imgRect.top + 210);
+    println(`Inside polygon returns polyArea: ${hitPoly === polyArea}`);
+    
+    // Test intentionally missing the rectangle (Testing your exact complaint!)
+    const missedRect = document.elementFromPoint(imgRect.left + 160, imgRect.top + 100);
+    println(`Outside rect returns img: ${missedRect === img}`);
+});
+</script>
+</body>
+</html>

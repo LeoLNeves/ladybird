@@ -46,6 +46,7 @@ struct HitTestResult {
         After,
     };
     InternalPosition internal_position { None };
+    GC::Ptr<DOM::Node> dom_node_override {};
 
     DOM::Node* dom_node();
     DOM::Node const* dom_node() const;
@@ -191,11 +192,15 @@ private:
 
 inline DOM::Node* HitTestResult::dom_node()
 {
+    if (dom_node_override)
+        return dom_node_override.ptr();
     return paintable->dom_node();
 }
 
 inline DOM::Node const* HitTestResult::dom_node() const
 {
+    if (dom_node_override)
+        return dom_node_override.ptr();
     return paintable->dom_node();
 }
 

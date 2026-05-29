@@ -44,4 +44,19 @@ GC::Ref<DOM::HTMLCollection> HTMLMapElement::areas()
     return *m_areas;
 }
 
+HTMLAreaElement* HTMLMapElement::area_at(int x, int y) const
+{
+    HTMLAreaElement* result = nullptr;
+
+    const_cast<HTMLMapElement*>(this)->template for_each_in_subtree_of_type<HTML::HTMLAreaElement>([&](auto& area) {
+        if (area.is_point_inside(x, y)) {
+            result = &area;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+
+    return result;
+}
+
 }

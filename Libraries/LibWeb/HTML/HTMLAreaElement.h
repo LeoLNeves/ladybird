@@ -21,6 +21,7 @@ class HTMLAreaElement final
 public:
     virtual ~HTMLAreaElement() override;
     GC::Ref<DOM::DOMTokenList> rel_list();
+    bool is_point_inside(int x, int y) const;
 
 private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);

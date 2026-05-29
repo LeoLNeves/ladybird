@@ -17,6 +17,7 @@ public:
     static NonnullRefPtr<ImagePaintable> create(Layout::ImageBox const& layout_box);
     static NonnullRefPtr<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
     virtual StringView class_name() const override { return "ImagePaintable"sv; }
+    virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
     virtual void reset_for_relayout() override;

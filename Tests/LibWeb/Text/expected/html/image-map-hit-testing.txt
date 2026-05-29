@@ -1,0 +1,5 @@
+Dead space returns img: true
+Inside rect returns rectArea: true
+Inside circle returns circleArea: true
+Inside polygon returns polyArea: true
+Outside rect returns img: true

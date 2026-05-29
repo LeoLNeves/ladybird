@@ -174,9 +174,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
+    GC::Ptr<DOM::Node> dom_node_override;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
+        dom_node_override = result->dom_node_override;
     } else {
         return EventResult::Dropped;
     }
@@ -188,6 +190,9 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     auto node = dom_node_for_event_dispatch(*paintable);
     if (!node)
         return EventResult::Dropped;
+
+    if (dom_node_override)
+        node = dom_node_override;
 
     m_mousedown_click_count = click_count;
 
@@ -293,11 +298,13 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
     Optional<int> start_index;
+    GC::Ptr<DOM::Node> dom_node_override;
 
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
         start_index = result->index_in_node;
+        dom_node_override = result->dom_node_override;
     }
 
     ArmedScopeGuard clear_cursor = [&] {
@@ -309,6 +316,9 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
         if (!node)
             return EventResult::Dropped;
+
+        if (dom_node_override)
+            node = dom_node_override;
 
         auto dispath_result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
             return event_handler.handle_mousemove(position, screen_position, buttons, modifiers);
@@ -410,9 +420,11 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
 
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
+    GC::Ptr<DOM::Node> dom_node_override;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
+        dom_node_override = result->dom_node_override;
     }
 
     auto click_count = m_mousedown_click_count;
@@ -440,6 +452,9 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     auto node = dom_node_for_event_dispatch(*paintable);
     if (!node)
         return EventResult::Dropped;
+
+    if (dom_node_override)
+        node = dom_node_override;
 
     auto dispath_result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
         return event_handler.handle_mouseup(position, screen_position, button, buttons, modifiers);
@@ -713,9 +728,11 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
 
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
+    GC::Ptr<DOM::Node> dom_node_override;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
+        dom_node_override = result->dom_node_override;
     }
 
     ArmedScopeGuard clear_hover = [&] {
@@ -730,6 +747,9 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     auto node = dom_node_for_event_dispatch(*paintable);
     if (!node)
         return;
+
+    if (dom_node_override)
+        node = dom_node_override;
 
     auto dispatch_result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
         event_handler.update_hover_after_scroll(position, screen_position, button, buttons, modifiers);
@@ -1402,7 +1422,7 @@ CSSPixelPoint EventHandler::compute_mouse_event_movement(CSSPixelPoint screen_po
 Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelPoint position)
 {
     if (auto result = paint_root()->hit_test(position, Painting::HitTestType::Exact); result.has_value())
-        return Target { .paintable = result->paintable.ptr(), .chrome_widget = result->chrome_widget, .index_in_node = result->index_in_node };
+        return Target { .paintable = result->paintable.ptr(), .chrome_widget = result->chrome_widget, .index_in_node = result->index_in_node, .dom_node_override = result->dom_node_override };
     return {};
 }
 
@@ -1513,6 +1533,20 @@ void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned but
                 m_navigable->page().client().page_did_click_link(*url, link->target().to_byte_string(), modifiers);
             } else if (button == UIEvents::MouseButton::Middle) {
                 m_navigable->page().client().page_did_middle_click_link(*url, link->target().to_byte_string(), modifiers);
+            }
+        }
+    } else if (auto const* area = as_if<HTML::HTMLAreaElement>(*node); area && area->has_attribute(HTML::AttributeNames::href)) {
+        GC::Ref<DOM::Document> document = *m_navigable->active_document();
+        if (auto url = document->encoding_parse_url(area->href()); url.has_value()) {
+
+            auto target_string = area->get_attribute_value(HTML::AttributeNames::target).to_byte_string();
+
+            if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::Mod_PlatformCtrl) != 0) {
+                m_navigable->page().client().page_did_click_link(*url, target_string, modifiers);
+            } else if (button == UIEvents::MouseButton::Middle) {
+                m_navigable->page().client().page_did_middle_click_link(*url, target_string, modifiers);
+            } else if (button == UIEvents::MouseButton::Primary) {
+                m_navigable->page().client().page_did_click_link(*url, target_string, modifiers);
             }
         }
     }
@@ -2192,8 +2226,18 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
     HTML::HTMLAnchorElement const* hovered_link_element = nullptr;
     if (target)
         hovered_link_element = target->enclosing_link_element();
+
+    HTML::HTMLAreaElement const* hovered_area_element = nullptr;
+    if (target)
+        hovered_area_element = as_if<HTML::HTMLAreaElement>(*target);
+
     if (hovered_link_element) {
         if (auto link_url = document.encoding_parse_url(hovered_link_element->href()); link_url.has_value()) {
+            page.client().page_did_hover_link(*link_url);
+            page.set_is_hovering_link(true);
+        }
+    } else if (hovered_area_element && hovered_area_element->has_attribute(HTML::AttributeNames::href)) {
+        if (auto link_url = document.encoding_parse_url(hovered_area_element->href()); link_url.has_value()) {
             page.client().page_did_hover_link(*link_url);
             page.set_is_hovering_link(true);
         }
@@ -2338,6 +2382,11 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
         if (chrome_widget) {
             if (auto cursor_override = chrome_widget->cursor(); cursor_override.has_value())
                 return css_to_gfx_cursor(cursor_override.value());
+        }
+
+        if (host_element && is<HTML::HTMLAreaElement>(*host_element)) {
+            if (as<HTML::HTMLAreaElement>(*host_element).has_attribute(HTML::AttributeNames::href))
+                return Gfx::StandardCursor::Hand;
         }
 
         if (paintable) {

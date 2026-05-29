@@ -14,7 +14,9 @@
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/SourceSet.h>
 #include <LibWeb/Layout/ImageProvider.h>
@@ -117,6 +119,8 @@ public:
     virtual GC::Ptr<DecodedImageData> decoded_image_data() const override;
 
     virtual void visit_edges(Cell::Visitor&) override;
+
+    HTMLAreaElement* area_at(int x, int y) const;
 
 private:
     HTMLImageElement(DOM::Document&, DOM::QualifiedName);
